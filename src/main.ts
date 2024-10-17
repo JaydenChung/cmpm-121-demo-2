@@ -16,36 +16,65 @@ canvas.classList.add("styled-canvas");
 
 app.appendChild(canvas);
 
-// Function to enable drawing on the canvas
-const enableDrawing = (canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-  
-    let isDrawing = false;
-  
-    const startDrawing = (event: MouseEvent) => {
-      isDrawing = true;
-      ctx.beginPath(); // Start a new path
-      ctx.moveTo(event.offsetX, event.offsetY); // Move to the mouse position
-    };
-  
-    const draw = (event: MouseEvent) => {
-      if (!isDrawing) return;
-      ctx.lineTo(event.offsetX, event.offsetY); // Draw line to the current mouse position
-      ctx.stroke(); // Apply the stroke to the canvas
-    };
-  
-    const stopDrawing = () => {
-      isDrawing = false;
-      ctx.closePath(); // Close the path when done drawing
-    };
-  
-    // Event listeners for mouse events
-    canvas.addEventListener("mousedown", startDrawing);
-    canvas.addEventListener("mousemove", draw);
-    canvas.addEventListener("mouseup", stopDrawing);
-    canvas.addEventListener("mouseout", stopDrawing); // Stop drawing if mouse leaves the canvas
+// Store the drawing paths (array of arrays of points)
+const paths: Array<Array<{ x: number, y: number }>> = [];
+
+// Function to enable capturing of points and dispatch event
+function enableDrawing(canvas: HTMLCanvasElement) {
+  let currentPath: Array<{ x: number, y: number }> = [];
+  let isDrawing = false;
+
+  const startDrawing = (event: MouseEvent) => {
+    isDrawing = true;
+    currentPath = [];
+    paths.push(currentPath); // Start a new path
+    addPoint(event);
   };
+
+  const addPoint = (event: MouseEvent) => {
+    if (!isDrawing) return;
+    const point = { x: event.offsetX, y: event.offsetY };
+    currentPath.push(point);
+
+    // Dispatch the custom "drawing-changed" event after adding a point
+    const drawingChangedEvent = new CustomEvent("drawing-changed");
+    canvas.dispatchEvent(drawingChangedEvent);
+  };
+
+  const stopDrawing = () => {
+    isDrawing = false;
+  };
+
+  // Event listeners for mouse events
+  canvas.addEventListener("mousedown", startDrawing);
+  canvas.addEventListener("mousemove", addPoint);
+  canvas.addEventListener("mouseup", stopDrawing);
+  canvas.addEventListener("mouseout", stopDrawing); // Stop drawing if mouse leaves the canvas
+}
+
+// Function to clear and redraw the canvas based on stored points
+function redrawCanvas(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+
+  ctx.beginPath(); // Start a new path for drawing
+  for (const path of paths) {
+    if (path.length > 0) {
+      ctx.moveTo(path[0].x, path[0].y); // Move to the first point
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x, path[i].y); // Draw a line to each subsequent point
+      }
+    }
+  }
+  ctx.stroke(); // Apply the stroke to render the paths
+}
+
+// Add observer for the "drawing-changed" event
+canvas.addEventListener("drawing-changed", () => {
+  redrawCanvas(canvas);
+});
 
 enableDrawing(canvas);
 
