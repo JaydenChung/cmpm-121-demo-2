@@ -16,8 +16,22 @@ canvas.classList.add("styled-canvas");
 
 app.appendChild(canvas);
 
-// Store the drawing paths (array of arrays of points)
+// Create control buttons (Clear, Undo, Redo)
+const clearButton = document.createElement("button");
+clearButton.innerText = "Clear";
+clearButton.classList.add("clear-button");
+
+const undoButton = document.createElement("button");
+undoButton.innerText = "Undo";
+undoButton.classList.add("undo-button");
+
+const redoButton = document.createElement("button");
+redoButton.innerText = "Redo";
+redoButton.classList.add("redo-button");
+
+// Store the drawing paths (array of arrays of points) and a redo stack
 const paths: Array<Array<{ x: number, y: number }>> = [];
+const redoStack: Array<Array<{ x: number, y: number }>> = [];
 
 // Function to enable capturing of points and dispatch event
 function enableDrawing(canvas: HTMLCanvasElement) {
@@ -43,6 +57,8 @@ function enableDrawing(canvas: HTMLCanvasElement) {
 
   const stopDrawing = () => {
     isDrawing = false;
+    // Clear the redo stack whenever a new path is drawn
+    redoStack.length = 0;
   };
 
   // Event listeners for mouse events
@@ -76,21 +92,52 @@ canvas.addEventListener("drawing-changed", () => {
   redrawCanvas(canvas);
 });
 
+// Enable drawing on the canvas
 enableDrawing(canvas);
 
-//create clear button
-const button = document.createElement("button");
-button.innerText = "CLEAR"
+// Add event listener to the "Clear" button to clear the canvas and reset paths
+clearButton.addEventListener("click", () => {
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    paths.length = 0; // Clear the stored paths
+    redoStack.length = 0; // Clear the redo stack
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+  }
+});
 
-app.appendChild(button);
-
-// Add event listener to the "Clear" button to clear the canvas
-button.addEventListener("click", () => {
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clears the entire canvas
+// Add event listener for "Undo" button
+undoButton.addEventListener("click", () => {
+  if (paths.length > 0) {
+    const lastPath = paths.pop(); // Remove the last path from paths
+    if (lastPath) {
+      redoStack.push(lastPath); // Add it to the redo stack
     }
-  });
+
+    // Dispatch the custom "drawing-changed" event
+    const drawingChangedEvent = new CustomEvent("drawing-changed");
+    canvas.dispatchEvent(drawingChangedEvent);
+  }
+});
+
+// Add event listener for "Redo" button
+redoButton.addEventListener("click", () => {
+  if (redoStack.length > 0) {
+    const redoPath = redoStack.pop(); // Remove the last path from redoStack
+    if (redoPath) {
+      paths.push(redoPath); // Add it back to paths
+    }
+
+    // Dispatch the custom "drawing-changed" event
+    const drawingChangedEvent = new CustomEvent("drawing-changed");
+    canvas.dispatchEvent(drawingChangedEvent);
+  }
+});
+// Append the buttons to the app div
+app.appendChild(clearButton);
+app.appendChild(undoButton);
+app.appendChild(redoButton);
+
+
 
 
 
