@@ -81,6 +81,12 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.styled-canvas {
+  border: 1px solid black;       /* Thin black border */
+  border-radius: 10px;           /* Rounded corners */
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); /* Drop shadow */
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
