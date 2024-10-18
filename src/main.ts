@@ -30,61 +30,78 @@ redoButton.innerText = "Redo";
 redoButton.classList.add("redo-button");
 
 // Store the drawing paths (array of arrays of points) and a redo stack
-const paths: Array<Array<{ x: number, y: number }>> = [];
-const redoStack: Array<Array<{ x: number, y: number }>> = [];
+// The display list holds drawable objects, including marker lines
+const displayList: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
+const redoStack: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 
-// Function to enable capturing of points and dispatch event
+// Class to represent a marker line
+class MarkerLine {
+  private points: Array<{ x: number, y: number }> = [];
+
+  constructor(initialX: number, initialY: number) {
+    this.points.push({ x: initialX, y: initialY });
+  }
+
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+
+  // The display method will be called to draw the line on the canvas
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.points.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(this.points[0].x, this.points[0].y);
+      for (let i = 1; i < this.points.length; i++) {
+        ctx.lineTo(this.points[i].x, this.points[i].y);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+// Function to enable drawing on the canvas
 function enableDrawing(canvas: HTMLCanvasElement) {
-  let currentPath: Array<{ x: number, y: number }> = [];
+  let currentLine: MarkerLine | null = null;
   let isDrawing = false;
 
   const startDrawing = (event: MouseEvent) => {
     isDrawing = true;
-    currentPath = [];
-    paths.push(currentPath); // Start a new path
-    addPoint(event);
+    currentLine = new MarkerLine(event.offsetX, event.offsetY);
+    displayList.push(currentLine); // Add the current line to the display list
   };
 
-  const addPoint = (event: MouseEvent) => {
-    if (!isDrawing) return;
-    const point = { x: event.offsetX, y: event.offsetY };
-    currentPath.push(point);
+  const dragDrawing = (event: MouseEvent) => {
+    if (!isDrawing || !currentLine) return;
+    currentLine.drag(event.offsetX, event.offsetY);
 
-    // Dispatch the custom "drawing-changed" event after adding a point
+    // Dispatch the custom "drawing-changed" event
     const drawingChangedEvent = new CustomEvent("drawing-changed");
     canvas.dispatchEvent(drawingChangedEvent);
   };
 
   const stopDrawing = () => {
     isDrawing = false;
-    // Clear the redo stack whenever a new path is drawn
-    redoStack.length = 0;
+    currentLine = null;
+    redoStack.length = 0; // Clear redo stack whenever a new path is drawn
   };
 
   // Event listeners for mouse events
   canvas.addEventListener("mousedown", startDrawing);
-  canvas.addEventListener("mousemove", addPoint);
+  canvas.addEventListener("mousemove", dragDrawing);
   canvas.addEventListener("mouseup", stopDrawing);
   canvas.addEventListener("mouseout", stopDrawing); // Stop drawing if mouse leaves the canvas
 }
 
-// Function to clear and redraw the canvas based on stored points
+// Function to clear and redraw the canvas based on stored objects
 function redrawCanvas(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
 
-  ctx.beginPath(); // Start a new path for drawing
-  for (const path of paths) {
-    if (path.length > 0) {
-      ctx.moveTo(path[0].x, path[0].y); // Move to the first point
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i].x, path[i].y); // Draw a line to each subsequent point
-      }
-    }
+  for (const drawable of displayList) {
+    drawable.display(ctx); // Call the display method of each object
   }
-  ctx.stroke(); // Apply the stroke to render the paths
 }
 
 // Add observer for the "drawing-changed" event
@@ -99,7 +116,7 @@ enableDrawing(canvas);
 clearButton.addEventListener("click", () => {
   const ctx = canvas.getContext("2d");
   if (ctx) {
-    paths.length = 0; // Clear the stored paths
+    displayList.length = 0; // Clear the stored objects
     redoStack.length = 0; // Clear the redo stack
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
   }
@@ -107,10 +124,10 @@ clearButton.addEventListener("click", () => {
 
 // Add event listener for "Undo" button
 undoButton.addEventListener("click", () => {
-  if (paths.length > 0) {
-    const lastPath = paths.pop(); // Remove the last path from paths
-    if (lastPath) {
-      redoStack.push(lastPath); // Add it to the redo stack
+  if (displayList.length > 0) {
+    const lastLine = displayList.pop(); // Remove the last drawable object
+    if (lastLine) {
+      redoStack.push(lastLine); // Add it to the redo stack
     }
 
     // Dispatch the custom "drawing-changed" event
@@ -122,9 +139,9 @@ undoButton.addEventListener("click", () => {
 // Add event listener for "Redo" button
 redoButton.addEventListener("click", () => {
   if (redoStack.length > 0) {
-    const redoPath = redoStack.pop(); // Remove the last path from redoStack
-    if (redoPath) {
-      paths.push(redoPath); // Add it back to paths
+    const redoLine = redoStack.pop(); // Remove the last drawable object from redo stack
+    if (redoLine) {
+      displayList.push(redoLine); // Add it back to the display list
     }
 
     // Dispatch the custom "drawing-changed" event
@@ -136,7 +153,6 @@ redoButton.addEventListener("click", () => {
 app.appendChild(clearButton);
 app.appendChild(undoButton);
 app.appendChild(redoButton);
-
 
 
 
