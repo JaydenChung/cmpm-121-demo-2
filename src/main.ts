@@ -44,8 +44,11 @@ app.appendChild(thickButton);
 
 // State variables for the drawing logic
 let currentThickness = 2; // Default thickness for "thin"
+let isDrawing = false;
 const displayList: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 const redoStack: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
+
+let toolPreview: ToolPreview | null = null;
 
 // Class to represent a marker line
 class MarkerLine {
@@ -74,10 +77,39 @@ class MarkerLine {
   }
 }
 
+class ToolPreview {
+    private x: number;
+    private y: number;
+    private thickness: number;
+  
+    constructor(x: number, y: number, thickness: number) {
+      this.x = x;
+      this.y = y;
+      this.thickness = thickness;
+    }
+  
+    updatePosition(x: number, y: number) {
+      this.x = x;
+      this.y = y;
+    }
+  
+    updateThickness(thickness: number) {
+      this.thickness = thickness; // Update the thickness when switching tools
+    }
+  
+    display(ctx: CanvasRenderingContext2D) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "gray";
+      ctx.stroke();
+    }
+  }
+  
+
 // Function to enable drawing on the canvas
 function enableDrawing(canvas: HTMLCanvasElement) {
   let currentLine: MarkerLine | null = null;
-  let isDrawing = false;
 
   const startDrawing = (event: MouseEvent) => {
     isDrawing = true;
@@ -117,6 +149,9 @@ function redrawCanvas(canvas: HTMLCanvasElement) {
   for (const drawable of displayList) {
     drawable.display(ctx); // Call the display method of each object
   }
+  if (!isDrawing && toolPreview) {
+        toolPreview.display(ctx);
+    }
 }
 
 // Add observer for the "drawing-changed" event
@@ -166,19 +201,41 @@ redoButton.addEventListener("click", () => {
 });
 
 // Add event listener for "Thin" tool button
-thinButton.addEventListener("click", () => {
-  currentThickness = 2; // Set thin line thickness
-  thinButton.classList.add("selectedTool");
-  thickButton.classList.remove("selectedTool");
-});
+    thinButton.addEventListener("click", () => {
+    currentThickness = 2; // Set thin line thickness
+    thinButton.classList.add("selectedTool");
+    thickButton.classList.remove("selectedTool");
+    
+    if (toolPreview) {
+      toolPreview.updateThickness(currentThickness); // Update the preview thickness
+    }
+  });
+  
+  // Add event listener for "Thick" tool button
+    thickButton.addEventListener("click", () => {
+    currentThickness = 8; // Set thick line thickness
+    thickButton.classList.add("selectedTool");
+    thinButton.classList.remove("selectedTool");
+  
+    if (toolPreview) {
+      toolPreview.updateThickness(currentThickness); // Update the preview thickness
+    }
+  });
+  
 
-// Add event listener for "Thick" tool button
-thickButton.addEventListener("click", () => {
-  currentThickness = 8; // Set thick line thickness
-  thickButton.classList.add("selectedTool");
-  thinButton.classList.remove("selectedTool");
-});
-Explanation:
+canvas.addEventListener("mousemove", (event: MouseEvent) => {
+    if (!isDrawing) { // Only update the preview if not drawing
+      if (!toolPreview) {
+        toolPreview = new ToolPreview(event.offsetX, event.offsetY, currentThickness);
+      } else {
+        toolPreview.updatePosition(event.offsetX, event.offsetY);
+      }
+  
+      // Dispatch the custom "drawing-changed" event
+      const toolMovedEvent = new CustomEvent("drawing-changed");
+      canvas.dispatchEvent(toolMovedEvent);
+    }
+  });
 
 // Append the buttons to the app div
 app.appendChild(clearButton);
