@@ -13,7 +13,6 @@ canvas.height = 256;
 
 canvas.classList.add("styled-canvas");
 
-
 app.appendChild(canvas);
 
 // Create control buttons (Clear, Undo, Redo)
@@ -48,11 +47,14 @@ let isDrawing = false;
 const displayList: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 const redoStack: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 
+// New array to hold placed emojis
+const emojiList: Array<{ emoji: string; x: number; y: number }> = [];
+
 let toolPreview: ToolPreview | null = null;
 
 // Class to represent a marker line
 class MarkerLine {
-  private points: Array<{ x: number, y: number }> = [];
+  private points: Array<{ x: number; y: number }> = [];
   private thickness: number;
 
   constructor(initialX: number, initialY: number, thickness: number) {
@@ -78,34 +80,33 @@ class MarkerLine {
 }
 
 class ToolPreview {
-    private x: number;
-    private y: number;
-    private thickness: number;
-  
-    constructor(x: number, y: number, thickness: number) {
-      this.x = x;
-      this.y = y;
-      this.thickness = thickness;
-    }
-  
-    updatePosition(x: number, y: number) {
-      this.x = x;
-      this.y = y;
-    }
-  
-    updateThickness(thickness: number) {
-      this.thickness = thickness; // Update the thickness when switching tools
-    }
-  
-    display(ctx: CanvasRenderingContext2D) {
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "gray";
-      ctx.stroke();
-    }
+  private x: number;
+  private y: number;
+  private thickness: number;
+
+  constructor(x: number, y: number, thickness: number) {
+    this.x = x;
+    this.y = y;
+    this.thickness = thickness;
   }
-  
+
+  updatePosition(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  updateThickness(thickness: number) {
+    this.thickness = thickness; // Update the thickness when switching tools
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "gray";
+    ctx.stroke();
+  }
+}
 
 // Function to enable drawing on the canvas
 function enableDrawing(canvas: HTMLCanvasElement) {
@@ -140,19 +141,6 @@ function enableDrawing(canvas: HTMLCanvasElement) {
 }
 
 // Function to clear and redraw the canvas based on stored objects
-function redrawCanvas(canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-
-  for (const drawable of displayList) {
-    drawable.display(ctx); // Call the display method of each object
-  }
-  if (!isDrawing && toolPreview) {
-        toolPreview.display(ctx);
-    }
-}
 
 // Add observer for the "drawing-changed" event
 canvas.addEventListener("drawing-changed", () => {
@@ -168,6 +156,7 @@ clearButton.addEventListener("click", () => {
   if (ctx) {
     displayList.length = 0; // Clear the stored objects
     redoStack.length = 0; // Clear the redo stack
+    emojiList.length = 0; // Clear the emoji list
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
   }
 });
@@ -201,47 +190,111 @@ redoButton.addEventListener("click", () => {
 });
 
 // Add event listener for "Thin" tool button
-    thinButton.addEventListener("click", () => {
-    currentThickness = 2; // Set thin line thickness
-    thinButton.classList.add("selectedTool");
-    thickButton.classList.remove("selectedTool");
-    
-    if (toolPreview) {
-      toolPreview.updateThickness(currentThickness); // Update the preview thickness
-    }
-  });
-  
-  // Add event listener for "Thick" tool button
-    thickButton.addEventListener("click", () => {
-    currentThickness = 8; // Set thick line thickness
-    thickButton.classList.add("selectedTool");
-    thinButton.classList.remove("selectedTool");
-  
-    if (toolPreview) {
-      toolPreview.updateThickness(currentThickness); // Update the preview thickness
-    }
-  });
-  
+thinButton.addEventListener("click", () => {
+  currentThickness = 2; // Set thin line thickness
+  thinButton.classList.add("selectedTool");
+  thickButton.classList.remove("selectedTool");
+
+  if (toolPreview) {
+    toolPreview.updateThickness(currentThickness); // Update the preview thickness
+  }
+});
+
+// Add event listener for "Thick" tool button
+thickButton.addEventListener("click", () => {
+  currentThickness = 8; // Set thick line thickness
+  thickButton.classList.add("selectedTool");
+  thinButton.classList.remove("selectedTool");
+
+  if (toolPreview) {
+    toolPreview.updateThickness(currentThickness); // Update the preview thickness
+  }
+});
 
 canvas.addEventListener("mousemove", (event: MouseEvent) => {
-    if (!isDrawing) { // Only update the preview if not drawing
-      if (!toolPreview) {
-        toolPreview = new ToolPreview(event.offsetX, event.offsetY, currentThickness);
-      } else {
-        toolPreview.updatePosition(event.offsetX, event.offsetY);
-      }
-  
-      // Dispatch the custom "drawing-changed" event
-      const toolMovedEvent = new CustomEvent("drawing-changed");
-      canvas.dispatchEvent(toolMovedEvent);
+  if (!isDrawing) {
+    if (!toolPreview) {
+      toolPreview = new ToolPreview(event.offsetX, event.offsetY, currentThickness);
+    } else {
+      toolPreview.updatePosition(event.offsetX, event.offsetY);
     }
-  });
+
+    // Dispatch the custom "drawing-changed" event
+    const toolMovedEvent = new CustomEvent("drawing-changed");
+    canvas.dispatchEvent(toolMovedEvent);
+  }
+});
 
 // Append the buttons to the app div
 app.appendChild(clearButton);
 app.appendChild(undoButton);
 app.appendChild(redoButton);
 
+// Add emoji selection
+const emojis = ["😀", "❤️", "🌟"]; // Example emojis
+const emojiButtons: HTMLButtonElement[] = [];
 
+// Create emoji buttons
+emojis.forEach((emoji) => {
+  const emojiButton = document.createElement("button");
+  emojiButton.innerText = emoji;
+  emojiButton.classList.add("emoji-button");
+  app.appendChild(emojiButton);
+  emojiButtons.push(emojiButton);
+});
 
+// State variable to track selected emoji
+let selectedEmoji: string | null = null;
 
+// Add event listeners to emoji buttons
+emojiButtons.forEach((button, index) => {
+  button.addEventListener("click", () => {
+    selectedEmoji = emojis[index]; // Set selected emoji
+    console.log(`Selected emoji: ${selectedEmoji}`); // For debugging
+  });
+});
+
+// Function to draw an emoji at a specific position
+function drawEmoji(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  if (selectedEmoji) {
+    ctx.font = "24px Arial"; // Adjust font size as needed
+    ctx.fillText(selectedEmoji, x, y); // Draw emoji at specified position
+    emojiList.push({ emoji: selectedEmoji, x, y }); // Store emoji position and type
+  }
+}
+
+// Update the canvas redrawing logic
+function redrawCanvas(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+    // Draw stored lines
+    displayList.forEach((item) => {
+      item.display(ctx);
+    });
+
+    // Draw emojis
+    emojiList.forEach((item) => {
+      ctx.font = "24px Arial"; // Adjust font size as needed
+      ctx.fillText(item.emoji, item.x, item.y); // Draw each emoji at stored position
+    });
+
+    // Draw the tool preview if it exists
+    toolPreview?.display(ctx);
+  }
+}
+
+// Handle drawing emojis on mouse click
+canvas.addEventListener("click", (event: MouseEvent) => {
+  if (selectedEmoji) {
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      drawEmoji(ctx, event.offsetX, event.offsetY); // Draw emoji at click position
+
+      // Dispatch the custom "drawing-changed" event
+      const drawingChangedEvent = new CustomEvent("drawing-changed");
+      canvas.dispatchEvent(drawingChangedEvent);
+    }
+  }
+});
