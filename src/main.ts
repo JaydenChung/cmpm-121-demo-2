@@ -29,24 +29,38 @@ const redoButton = document.createElement("button");
 redoButton.innerText = "Redo";
 redoButton.classList.add("redo-button");
 
-// Store the drawing paths (array of arrays of points) and a redo stack
-// The display list holds drawable objects, including marker lines
+// Tool buttons for "Thin" and "Thick"
+const thinButton = document.createElement("button");
+thinButton.innerText = "Thin Marker";
+thinButton.classList.add("thin-button", "selectedTool"); // Initially selected
+
+const thickButton = document.createElement("button");
+thickButton.innerText = "Thick Marker";
+thickButton.classList.add("thick-button");
+
+// Append the buttons to the app div
+app.appendChild(thinButton);
+app.appendChild(thickButton);
+
+// State variables for the drawing logic
+let currentThickness = 2; // Default thickness for "thin"
 const displayList: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 const redoStack: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 
 // Class to represent a marker line
 class MarkerLine {
   private points: Array<{ x: number, y: number }> = [];
+  private thickness: number;
 
-  constructor(initialX: number, initialY: number) {
+  constructor(initialX: number, initialY: number, thickness: number) {
     this.points.push({ x: initialX, y: initialY });
+    this.thickness = thickness;
   }
 
   drag(x: number, y: number) {
     this.points.push({ x, y });
   }
 
-  // The display method will be called to draw the line on the canvas
   display(ctx: CanvasRenderingContext2D) {
     if (this.points.length > 1) {
       ctx.beginPath();
@@ -54,6 +68,7 @@ class MarkerLine {
       for (let i = 1; i < this.points.length; i++) {
         ctx.lineTo(this.points[i].x, this.points[i].y);
       }
+      ctx.lineWidth = this.thickness; // Set line thickness
       ctx.stroke();
     }
   }
@@ -66,7 +81,7 @@ function enableDrawing(canvas: HTMLCanvasElement) {
 
   const startDrawing = (event: MouseEvent) => {
     isDrawing = true;
-    currentLine = new MarkerLine(event.offsetX, event.offsetY);
+    currentLine = new MarkerLine(event.offsetX, event.offsetY, currentThickness);
     displayList.push(currentLine); // Add the current line to the display list
   };
 
@@ -149,6 +164,22 @@ redoButton.addEventListener("click", () => {
     canvas.dispatchEvent(drawingChangedEvent);
   }
 });
+
+// Add event listener for "Thin" tool button
+thinButton.addEventListener("click", () => {
+  currentThickness = 2; // Set thin line thickness
+  thinButton.classList.add("selectedTool");
+  thickButton.classList.remove("selectedTool");
+});
+
+// Add event listener for "Thick" tool button
+thickButton.addEventListener("click", () => {
+  currentThickness = 8; // Set thick line thickness
+  thickButton.classList.add("selectedTool");
+  thinButton.classList.remove("selectedTool");
+});
+Explanation:
+
 // Append the buttons to the app div
 app.appendChild(clearButton);
 app.appendChild(undoButton);
