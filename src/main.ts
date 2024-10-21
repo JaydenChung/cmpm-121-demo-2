@@ -54,30 +54,34 @@ let toolPreview: ToolPreview | null = null;
 
 // Class to represent a marker line
 class MarkerLine {
-  private points: Array<{ x: number; y: number }> = [];
-  private thickness: number;
-
-  constructor(initialX: number, initialY: number, thickness: number) {
-    this.points.push({ x: initialX, y: initialY });
-    this.thickness = thickness;
-  }
-
-  drag(x: number, y: number) {
-    this.points.push({ x, y });
-  }
-
-  display(ctx: CanvasRenderingContext2D) {
-    if (this.points.length > 1) {
-      ctx.beginPath();
-      ctx.moveTo(this.points[0].x, this.points[0].y);
-      for (let i = 1; i < this.points.length; i++) {
-        ctx.lineTo(this.points[i].x, this.points[i].y);
+    private points: Array<{ x: number, y: number }> = [];
+    private thickness: number;
+    private color: string; // New property to store the color
+  
+    constructor(initialX: number, initialY: number, thickness: number, color: string) {
+      this.points.push({ x: initialX, y: initialY });
+      this.thickness = thickness;
+      this.color = color; // Store the selected color
+    }
+  
+    drag(x: number, y: number) {
+      this.points.push({ x, y });
+    }
+  
+    display(ctx: CanvasRenderingContext2D) {
+      if (this.points.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) {
+          ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
+        ctx.lineWidth = this.thickness; // Set line thickness
+        ctx.strokeStyle = this.color; // Set stroke color
+        ctx.stroke();
       }
-      ctx.lineWidth = this.thickness; // Set line thickness
-      ctx.stroke();
     }
   }
-}
+  
 
 class ToolPreview {
   private x: number;
@@ -110,35 +114,36 @@ class ToolPreview {
 
 // Function to enable drawing on the canvas
 function enableDrawing(canvas: HTMLCanvasElement) {
-  let currentLine: MarkerLine | null = null;
-
-  const startDrawing = (event: MouseEvent) => {
-    isDrawing = true;
-    currentLine = new MarkerLine(event.offsetX, event.offsetY, currentThickness);
-    displayList.push(currentLine); // Add the current line to the display list
-  };
-
-  const dragDrawing = (event: MouseEvent) => {
-    if (!isDrawing || !currentLine) return;
-    currentLine.drag(event.offsetX, event.offsetY);
-
-    // Dispatch the custom "drawing-changed" event
-    const drawingChangedEvent = new CustomEvent("drawing-changed");
-    canvas.dispatchEvent(drawingChangedEvent);
-  };
-
-  const stopDrawing = () => {
-    isDrawing = false;
-    currentLine = null;
-    redoStack.length = 0; // Clear redo stack whenever a new path is drawn
-  };
-
-  // Event listeners for mouse events
-  canvas.addEventListener("mousedown", startDrawing);
-  canvas.addEventListener("mousemove", dragDrawing);
-  canvas.addEventListener("mouseup", stopDrawing);
-  canvas.addEventListener("mouseout", stopDrawing); // Stop drawing if mouse leaves the canvas
-}
+    let currentLine: MarkerLine | null = null;
+  
+    const startDrawing = (event: MouseEvent) => {
+      isDrawing = true;
+      currentLine = new MarkerLine(event.offsetX, event.offsetY, currentThickness, currentColor); // Pass the current color
+      displayList.push(currentLine); // Add the current line to the display list
+    };
+  
+    const dragDrawing = (event: MouseEvent) => {
+      if (!isDrawing || !currentLine) return;
+      currentLine.drag(event.offsetX, event.offsetY);
+  
+      // Dispatch the custom "drawing-changed" event
+      const drawingChangedEvent = new CustomEvent("drawing-changed");
+      canvas.dispatchEvent(drawingChangedEvent);
+    };
+  
+    const stopDrawing = () => {
+      isDrawing = false;
+      currentLine = null;
+      redoStack.length = 0; // Clear redo stack whenever a new path is drawn
+    };
+  
+    // Event listeners for mouse events
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", dragDrawing);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseout", stopDrawing); // Stop drawing if mouse leaves the canvas
+  }
+  
 
 // Function to clear and redraw the canvas based on stored objects
 
@@ -189,27 +194,36 @@ redoButton.addEventListener("click", () => {
   }
 });
 
-// Add event listener for "Thin" tool button
-thinButton.addEventListener("click", () => {
-  currentThickness = 2; // Set thin line thickness
-  thinButton.classList.add("selectedTool");
-  thickButton.classList.remove("selectedTool");
-
-  if (toolPreview) {
-    toolPreview.updateThickness(currentThickness); // Update the preview thickness
+// Function to get a random color
+function getRandomColor() {
+    const colors = ["black", "red", "blue", "green", "yellow", "purple", "orange"];
+    return colors[Math.floor(Math.random() * colors.length)];
   }
-});
-
-// Add event listener for "Thick" tool button
-thickButton.addEventListener("click", () => {
-  currentThickness = 8; // Set thick line thickness
-  thickButton.classList.add("selectedTool");
-  thinButton.classList.remove("selectedTool");
-
-  if (toolPreview) {
-    toolPreview.updateThickness(currentThickness); // Update the preview thickness
-  }
-});
+  
+  // Add event listener for "Thin" tool button
+  thinButton.addEventListener("click", () => {
+    currentThickness = 2; // Set thin line thickness
+    currentColor = getRandomColor(); // Set a random color
+    thinButton.classList.add("selectedTool");
+    thickButton.classList.remove("selectedTool");
+  
+    if (toolPreview) {
+      toolPreview.updateThickness(currentThickness); // Update the preview thickness
+    }
+  });
+  
+  // Add event listener for "Thick" tool button
+  thickButton.addEventListener("click", () => {
+    currentThickness = 8; // Set thick line thickness
+    currentColor = getRandomColor(); // Set a random color
+    thickButton.classList.add("selectedTool");
+    thinButton.classList.remove("selectedTool");
+  
+    if (toolPreview) {
+      toolPreview.updateThickness(currentThickness); // Update the preview thickness
+    }
+  });
+  
 
 canvas.addEventListener("mousemove", (event: MouseEvent) => {
   if (!isDrawing) {
@@ -361,5 +375,29 @@ exportButton.addEventListener("click", () => {
       }
     }, "image/png"); // PNG format
   }
+});
+
+
+// Add color selection buttons
+const colors = ["black", "red", "blue", "green"]; // Example colors
+const colorButtons: HTMLButtonElement[] = [];
+let currentColor = "black"; // Default color
+
+// Create color buttons
+colors.forEach((color) => {
+  const colorButton = document.createElement("button");
+  colorButton.innerText = color;
+  colorButton.style.backgroundColor = color;
+  colorButton.classList.add("color-button");
+  app.appendChild(colorButton);
+  colorButtons.push(colorButton);
+});
+
+// Add event listeners to color buttons
+colorButtons.forEach((button, index) => {
+  button.addEventListener("click", () => {
+    currentColor = colors[index]; // Set the current color when a button is clicked
+    console.log(`Selected color: ${currentColor}`); // For debugging
+  });
 });
 
