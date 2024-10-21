@@ -47,8 +47,8 @@ let isDrawing = false;
 const displayList: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 const redoStack: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
 
-// New array to hold placed emojis
-const emojiList: Array<{ emoji: string; x: number; y: number }> = [];
+// New array to hold placed emojis and custom stickers
+const stickerList: Array<{ sticker: string; x: number; y: number }> = [];
 
 let toolPreview: ToolPreview | null = null;
 
@@ -156,7 +156,7 @@ clearButton.addEventListener("click", () => {
   if (ctx) {
     displayList.length = 0; // Clear the stored objects
     redoStack.length = 0; // Clear the redo stack
-    emojiList.length = 0; // Clear the emoji list
+    stickerList.length = 0; // Clear the sticker list
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
   }
 });
@@ -230,36 +230,59 @@ app.appendChild(clearButton);
 app.appendChild(undoButton);
 app.appendChild(redoButton);
 
-// Add emoji selection
-const emojis = ["😀", "❤️", "🌟"]; // Example emojis
+// Add emoji and sticker selection
+const stickers = ["😀", "❤️", "🌟"]; // Example emojis
 const emojiButtons: HTMLButtonElement[] = [];
 
 // Create emoji buttons
-emojis.forEach((emoji) => {
-  const emojiButton = document.createElement("button");
-  emojiButton.innerText = emoji;
-  emojiButton.classList.add("emoji-button");
-  app.appendChild(emojiButton);
-  emojiButtons.push(emojiButton);
+stickers.forEach((sticker) => {
+  const stickerButton = document.createElement("button");
+  stickerButton.innerText = sticker;
+  stickerButton.classList.add("sticker-button");
+  app.appendChild(stickerButton);
+  emojiButtons.push(stickerButton);
 });
 
-// State variable to track selected emoji
-let selectedEmoji: string | null = null;
+// State variable to track selected sticker
+let selectedSticker: string | null = null;
 
 // Add event listeners to emoji buttons
 emojiButtons.forEach((button, index) => {
   button.addEventListener("click", () => {
-    selectedEmoji = emojis[index]; // Set selected emoji
-    console.log(`Selected emoji: ${selectedEmoji}`); // For debugging
+    selectedSticker = stickers[index]; // Set selected emoji
+    console.log(`Selected sticker: ${selectedSticker}`); // For debugging
   });
 });
 
-// Function to draw an emoji at a specific position
-function drawEmoji(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  if (selectedEmoji) {
-    ctx.font = "24px Arial"; // Adjust font size as needed
-    ctx.fillText(selectedEmoji, x, y); // Draw emoji at specified position
-    emojiList.push({ emoji: selectedEmoji, x, y }); // Store emoji position and type
+// Add button to create a custom sticker
+const customStickerButton = document.createElement("button");
+customStickerButton.innerText = "Create Custom Sticker";
+customStickerButton.classList.add("custom-sticker-button");
+app.appendChild(customStickerButton);
+
+// Event listener for creating custom stickers
+customStickerButton.addEventListener("click", () => {
+  const userInput = prompt("Enter your custom sticker:", "🎨");
+  if (userInput) {
+    stickers.push(userInput); // Add the new sticker to the sticker list
+    const customButton = document.createElement("button");
+    customButton.innerText = userInput;
+    customButton.classList.add("sticker-button");
+    app.appendChild(customButton);
+    emojiButtons.push(customButton);
+
+    // Add event listener to new custom button
+    customButton.addEventListener("click", () => {
+      selectedSticker = userInput;
+      console.log(`Selected sticker: ${selectedSticker}`); // For debugging
+    });
+  }
+});
+
+// Function to draw the selected sticker on canvas
+function drawSticker(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  if (selectedSticker) {
+    stickerList.push({ sticker: selectedSticker, x, y }); // Store sticker and position
   }
 }
 
@@ -274,10 +297,10 @@ function redrawCanvas(canvas: HTMLCanvasElement) {
       item.display(ctx);
     });
 
-    // Draw emojis
-    emojiList.forEach((item) => {
+    // Draw stickers
+    stickerList.forEach((item) => {
       ctx.font = "24px Arial"; // Adjust font size as needed
-      ctx.fillText(item.emoji, item.x, item.y); // Draw each emoji at stored position
+      ctx.fillText(item.sticker, item.x, item.y); // Draw each sticker at stored position
     });
 
     // Draw the tool preview if it exists
@@ -285,12 +308,12 @@ function redrawCanvas(canvas: HTMLCanvasElement) {
   }
 }
 
-// Handle drawing emojis on mouse click
+// Handle drawing stickers on mouse click
 canvas.addEventListener("click", (event: MouseEvent) => {
-  if (selectedEmoji) {
+  if (selectedSticker) {
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      drawEmoji(ctx, event.offsetX, event.offsetY); // Draw emoji at click position
+      drawSticker(ctx, event.offsetX, event.offsetY); // Draw sticker at click position
 
       // Dispatch the custom "drawing-changed" event
       const drawingChangedEvent = new CustomEvent("drawing-changed");
