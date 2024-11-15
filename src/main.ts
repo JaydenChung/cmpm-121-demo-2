@@ -283,7 +283,7 @@ customStickerButton.addEventListener("click", () => {
     customButton.innerText = userInput;
     customButton.classList.add("sticker-button");
     app.appendChild(customButton);
-    emojiButtons.push(customButton);
+    emojiButtons.push(customButton); // Add the new emoji button to the button list
 
     // Add event listener to new custom button
     customButton.addEventListener("click", () => {
