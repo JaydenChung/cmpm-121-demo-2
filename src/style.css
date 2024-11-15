@@ -15,11 +15,12 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #ff8c00; /* Bright orange */
   text-decoration: inherit;
+  transition: color 0.3s ease;
 }
 a:hover {
-  color: #535bf2;
+  color: #ffa500; /* Softer orange */
 }
 
 body {
@@ -28,11 +29,15 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background: linear-gradient(135deg, #3b3b98, #232323); /* Gradient background */
 }
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+  background: linear-gradient(to right, #ff512f, #dd2476); /* Text gradient */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 #app {
@@ -46,20 +51,30 @@ h1 {
   height: 6em;
   padding: 1.5em;
   will-change: filter;
+  transition: transform 0.3s ease, filter 0.3s ease;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em #ff8c00aa);
+  transform: scale(1.1); /* Slight zoom effect */
 }
 .logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #3178c6aa);
+  filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
 .card {
   padding: 2em;
+  border: 1px solid #444;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-5px); /* Hover lift effect */
 }
 
 .read-the-docs {
-  color: #888;
+  color: #aaa;
 }
 
 button {
@@ -69,12 +84,14 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background: linear-gradient(90deg, #ff8c00, #ff512f);
+  color: white;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: background 0.25s ease, transform 0.2s ease;
 }
 button:hover {
-  border-color: #646cff;
+  background: linear-gradient(90deg, #ffa500, #ff7043);
+  transform: scale(1.05); /* Slight zoom */
 }
 button:focus,
 button:focus-visible {
@@ -82,24 +99,28 @@ button:focus-visible {
 }
 
 .styled-canvas {
-  border: 1px solid black;       /* Thin black border */
-  border-radius: 10px;           /* Rounded corners */
-  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); /* Drop shadow */
+  border: 2px solid #ff8c00;
+  border-radius: 10px;
+  box-shadow: 5px 5px 20px rgba(255, 140, 0, 0.5);
   cursor: none;
+  transition: box-shadow 0.3s ease;
 }
-
-
-
+.styled-canvas:hover {
+  box-shadow: 10px 10px 25px rgba(255, 140, 0, 0.8);
+}
 
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    background-color: #f3f3f3;
   }
   a:hover {
-    color: #747bff;
+    color: #ff7043;
   }
   button {
-    background-color: #f9f9f9;
+    background: linear-gradient(90deg, #ff8c00, #ff7043);
+  }
+  .card {
+    background: rgba(0, 0, 0, 0.05);
   }
 }
