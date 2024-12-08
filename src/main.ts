@@ -323,7 +323,7 @@ customStickerButton.addEventListener("click", () => {
     customButton.innerText = userInput;
     customButton.classList.add("sticker-button");
     app.appendChild(customButton);
-    emojiButtons.push(customButton); // Add the new emoji button to the button list
+    emojiButtons.push(customButton);
 
     // Add event listener to new custom button
     customButton.addEventListener("click", () => {
@@ -434,7 +434,6 @@ exportButton.addEventListener("click", () => {
   if (exportCtx) {
     // Step 2: Scale the context to 4x in both dimensions
     exportCtx.scale(4, 4); // Scale up by 4x
-    exportCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height); // Clear the scaled context
 
     // Step 3: Redraw all the items from the display list on the new context
     displayList.forEach((item) => {
@@ -443,16 +442,19 @@ exportButton.addEventListener("click", () => {
 
     // Draw stickers on the new canvas
     stickerList.forEach((item) => {
-      exportCtx.font = "24px Arial";
-      exportCtx.fillText(item.sticker, item.x, item.y);
+      exportCtx.font = "24px Arial"; // Keep font size the same as the original
+      exportCtx.fillText(item.sticker, item.x, item.y); // Draw stickers at stored positions
     });
 
-    // Step 4: Convert the canvas content to a data URL and download it
-    const dataURL = exportCanvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.download = ${APP_NAME}.png;
-    link.href = dataURL;
-    link.click();
+    // Step 4: Convert the canvas content to a PNG file and trigger download
+    exportCanvas.toBlob((blob) => {
+      if (blob) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "drawing_export.png"; // Set the filename
+        link.click(); // Trigger the download
+      }
+    }, "image/png"); // PNG format
   }
 });
 
