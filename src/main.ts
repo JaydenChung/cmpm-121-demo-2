@@ -247,23 +247,30 @@ function getRandomColor() {
     thinButton.classList.add("selectedTool");
     thickButton.classList.remove("selectedTool");
   
+    // Reset sticker selection when switching to drawing tool
+    selectedSticker = null;
+    emojiPreview = null;
+  
     if (toolPreview) {
       toolPreview.updateThickness(currentThickness); // Update the preview thickness
     }
   });
   
-  // Add event listener for "Thick" tool button
+  // Add similar reset for thick button
   thickButton.addEventListener("click", () => {
     currentThickness = 8; // Set thick line thickness
     currentColor = getRandomColor(); // Set a random color
     thickButton.classList.add("selectedTool");
     thinButton.classList.remove("selectedTool");
   
+    // Reset sticker selection when switching to drawing tool
+    selectedSticker = null;
+    emojiPreview = null;
+  
     if (toolPreview) {
       toolPreview.updateThickness(currentThickness); // Update the preview thickness
     }
   });
-  
 
 canvas.addEventListener("mousemove", (event: MouseEvent) => {
   if (!isDrawing) {
@@ -303,6 +310,12 @@ let selectedSticker: string | null = null;
 // Add event listeners to emoji buttons
 emojiButtons.forEach((button, index) => {
   button.addEventListener("click", () => {
+    // Remove selected class from all emoji buttons
+    emojiButtons.forEach(btn => btn.classList.remove('selected-sticker'));
+    
+    // Add selected class to the clicked button
+    button.classList.add('selected-sticker');
+
     selectedSticker = stickers[index]; // Set selected emoji
     console.log(`Selected sticker: ${selectedSticker}`); // For debugging
   });
@@ -327,11 +340,26 @@ customStickerButton.addEventListener("click", () => {
 
     // Add event listener to new custom button
     customButton.addEventListener("click", () => {
+      // Remove selected class from all emoji buttons
+      emojiButtons.forEach(btn => btn.classList.remove('selected-sticker'));
+      
+      // Add selected class to the clicked button
+      customButton.classList.add('selected-sticker');
+
       selectedSticker = userInput;
       console.log(`Selected sticker: ${selectedSticker}`); // For debugging
     });
   }
 });
+
+const styleTag = document.createElement('style');
+styleTag.textContent = `
+  .selected-sticker {
+    border: 2px solid blue;
+    background-color: lightblue;
+  }
+`;
+document.head.appendChild(styleTag);
 
 function drawSticker(ctx: CanvasRenderingContext2D, x: number, y: number) {
   if (selectedSticker) {
