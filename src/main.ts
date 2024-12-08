@@ -44,9 +44,14 @@ app.appendChild(thickButton);
 // State variables for the drawing logic
 let currentThickness = 2; // Default thickness for "thin"
 let isDrawing = false;
-const displayList: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
-const redoStack: Array<{ display(ctx: CanvasRenderingContext2D): void }> = [];
-
+const displayList: Array<{ 
+  display(ctx: CanvasRenderingContext2D): void, 
+  type?: 'line' | 'sticker' 
+}> = [];
+const redoStack: Array<{ 
+  display(ctx: CanvasRenderingContext2D): void, 
+  type?: 'line' | 'sticker' 
+}> = [];
 // New array to hold placed emojis and custom stickers
 const stickerList: Array<{ sticker: string; x: number; y: number }> = [];
 
@@ -54,33 +59,48 @@ let toolPreview: ToolPreview | null = null;
 
 // Class to represent a marker line
 class MarkerLine {
-    private points: Array<{ x: number, y: number }> = [];
-    private thickness: number;
-    private color: string; // New property to store the color
-  
-    constructor(initialX: number, initialY: number, thickness: number, color: string) {
-      this.points.push({ x: initialX, y: initialY });
-      this.thickness = thickness;
-      this.color = color; // Store the selected color
-    }
-  
-    drag(x: number, y: number) {
-      this.points.push({ x, y });
-    }
-  
-    display(ctx: CanvasRenderingContext2D) {
-      if (this.points.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(this.points[0].x, this.points[0].y);
-        for (let i = 1; i < this.points.length; i++) {
-          ctx.lineTo(this.points[i].x, this.points[i].y);
-        }
-        ctx.lineWidth = this.thickness; // Set line thickness
-        ctx.strokeStyle = this.color; // Set stroke color
-        ctx.stroke();
+  private points: Array<{ x: number, y: number }> = [];
+  private thickness: number;
+  private color: string;
+  public type: 'line' = 'line';
+
+  constructor(initialX: number, initialY: number, thickness: number, color: string) {
+    this.points.push({ x: initialX, y: initialY });
+    this.thickness = thickness;
+    this.color = color;
+  }
+
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.points.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(this.points[0].x, this.points[0].y);
+      for (let i = 1; i < this.points.length; i++) {
+        ctx.lineTo(this.points[i].x, this.points[i].y);
       }
+      ctx.lineWidth = this.thickness;
+      ctx.strokeStyle = this.color;
+      ctx.stroke();
     }
   }
+}
+
+class Sticker {
+  public type: 'sticker' = 'sticker';
+  constructor(
+      public sticker: string, 
+      public x: number, 
+      public y: number
+  ) {}
+
+  display(ctx: CanvasRenderingContext2D) {
+      ctx.font = "24px Arial";
+      ctx.fillText(this.sticker, this.x, this.y);
+  }
+}
   
 
 class ToolPreview {
@@ -118,8 +138,9 @@ function enableDrawing(canvas: HTMLCanvasElement) {
   
     const startDrawing = (event: MouseEvent) => {
       isDrawing = true;
-      currentLine = new MarkerLine(event.offsetX, event.offsetY, currentThickness, currentColor); // Pass the current color
-      displayList.push(currentLine); // Add the current line to the display list
+      currentLine = new MarkerLine(event.offsetX, event.offsetY, currentThickness, currentColor);
+      displayList.push(currentLine);
+      redoStack.length = 0; // Clear redo stack
     };
   
     const dragDrawing = (event: MouseEvent) => {
@@ -159,38 +180,57 @@ enableDrawing(canvas);
 clearButton.addEventListener("click", () => {
   const ctx = canvas.getContext("2d");
   if (ctx) {
-    displayList.length = 0; // Clear the stored objects
-    redoStack.length = 0; // Clear the redo stack
-    stickerList.length = 0; // Clear the sticker list
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+    displayList.length = 0;
+    redoStack.length = 0;
+    stickerList.length = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dispatch the custom "drawing-changed" event
+    const drawingChangedEvent = new CustomEvent("drawing-changed");
+    canvas.dispatchEvent(drawingChangedEvent);
   }
 });
 
 // Add event listener for "Undo" button
 undoButton.addEventListener("click", () => {
   if (displayList.length > 0) {
-    const lastLine = displayList.pop(); // Remove the last drawable object
-    if (lastLine) {
-      redoStack.push(lastLine); // Add it to the redo stack
-    }
+    const lastItem = displayList.pop();
+    if (lastItem) {
+      redoStack.push(lastItem);
 
-    // Dispatch the custom "drawing-changed" event
-    const drawingChangedEvent = new CustomEvent("drawing-changed");
-    canvas.dispatchEvent(drawingChangedEvent);
+      // Remove the last item from stickerList if it's a sticker
+      if (lastItem.type === 'sticker' && stickerList.length > 0) {
+        stickerList.pop();
+      }
+
+      // Dispatch the custom "drawing-changed" event
+      const drawingChangedEvent = new CustomEvent("drawing-changed");
+      canvas.dispatchEvent(drawingChangedEvent);
+    }
   }
 });
 
 // Add event listener for "Redo" button
 redoButton.addEventListener("click", () => {
   if (redoStack.length > 0) {
-    const redoLine = redoStack.pop(); // Remove the last drawable object from redo stack
-    if (redoLine) {
-      displayList.push(redoLine); // Add it back to the display list
-    }
+    const redoItem = redoStack.pop();
+    if (redoItem) {
+      displayList.push(redoItem);
 
-    // Dispatch the custom "drawing-changed" event
-    const drawingChangedEvent = new CustomEvent("drawing-changed");
-    canvas.dispatchEvent(drawingChangedEvent);
+      // Add back to stickerList if it's a sticker
+      if (redoItem.type === 'sticker') {
+        const stickerItem = redoItem as Sticker;
+        stickerList.push({ 
+          sticker: stickerItem.sticker, 
+          x: stickerItem.x, 
+          y: stickerItem.y 
+        });
+      }
+
+      // Dispatch the custom "drawing-changed" event
+      const drawingChangedEvent = new CustomEvent("drawing-changed");
+      canvas.dispatchEvent(drawingChangedEvent);
+    }
   }
 });
 
@@ -293,14 +333,46 @@ customStickerButton.addEventListener("click", () => {
   }
 });
 
-// Function to draw the selected sticker on canvas
 function drawSticker(ctx: CanvasRenderingContext2D, x: number, y: number) {
   if (selectedSticker) {
-    stickerList.push({ sticker: selectedSticker, x, y }); // Store sticker and position
+    const newSticker = new Sticker(selectedSticker, x, y);
+    displayList.push(newSticker);
+    stickerList.push({ sticker: selectedSticker, x, y });
   }
 }
 
 // Update the canvas redrawing logic
+// Add a new property to track the emoji preview
+let emojiPreview: { sticker: string; x: number; y: number } | null = null;
+
+// Modify the canvas mousemove event listener to handle emoji preview
+canvas.addEventListener("mousemove", (event: MouseEvent) => {
+  if (!isDrawing) {
+    // Handle tool preview for drawing
+    if (!toolPreview) {
+      toolPreview = new ToolPreview(event.offsetX, event.offsetY, currentThickness);
+    } else {
+      toolPreview.updatePosition(event.offsetX, event.offsetY);
+    }
+
+    // Handle emoji preview if a sticker is selected
+    if (selectedSticker) {
+      emojiPreview = {
+        sticker: selectedSticker,
+        x: event.offsetX,
+        y: event.offsetY
+      };
+    } else {
+      emojiPreview = null;
+    }
+
+    // Dispatch the custom "drawing-changed" event
+    const toolMovedEvent = new CustomEvent("drawing-changed");
+    canvas.dispatchEvent(toolMovedEvent);
+  }
+});
+
+// Update the redrawCanvas function to include emoji preview
 function redrawCanvas(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext("2d");
   if (ctx) {
@@ -319,6 +391,14 @@ function redrawCanvas(canvas: HTMLCanvasElement) {
 
     // Draw the tool preview if it exists
     toolPreview?.display(ctx);
+
+    // Draw emoji preview with reduced opacity
+    if (emojiPreview) {
+      ctx.globalAlpha = 0.5; // Set reduced opacity for preview
+      ctx.font = "24px Arial";
+      ctx.fillText(emojiPreview.sticker, emojiPreview.x, emojiPreview.y);
+      ctx.globalAlpha = 1; // Reset opacity
+    }
   }
 }
 
@@ -327,7 +407,8 @@ canvas.addEventListener("click", (event: MouseEvent) => {
   if (selectedSticker) {
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      drawSticker(ctx, event.offsetX, event.offsetY); // Draw sticker at click position
+      drawSticker(ctx, event.offsetX, event.offsetY);
+      redoStack.length = 0; // Clear redo stack when placing a sticker
 
       // Dispatch the custom "drawing-changed" event
       const drawingChangedEvent = new CustomEvent("drawing-changed");
